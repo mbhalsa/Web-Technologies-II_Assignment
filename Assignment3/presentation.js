@@ -1,5 +1,6 @@
 "use strict";
 
+
 const prompt = require("prompt-sync")();
 const business = require("./business");
 
@@ -83,5 +84,6 @@ async function runMenu() {
 
   console.log("Goodbye");
 }
+
 
 runMenu();
