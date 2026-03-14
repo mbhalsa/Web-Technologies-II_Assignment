@@ -8,7 +8,7 @@
 <body>
   <h1>Edit Employee</h1>
 
-  <form method="post" action="/employees/{{employee.employeeId}}/edit">
+  <form method="post" action="/employees/{{employee._id}}/edit">
     <div>
       <label>Name</label><br>
       <input type="text" name="name" value="{{employee.name}}">
@@ -22,6 +22,6 @@
     <button type="submit">Save</button>
   </form>
 
-  <p><a href="/employees/{{employee.employeeId}}">Cancel</a></p>
+  <p><a href="/employees/{{employee._id}}">Cancel</a></p>
 </body>
 </html>
