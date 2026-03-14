@@ -1,6 +1,5 @@
 "use strict";
 
-
 const fs = require("fs/promises");
 const { MongoClient } = require("mongodb");
 
@@ -124,5 +123,4 @@ module.exports = {
   findEmployee,
   getEmployeeShifts,
   updateEmployee
-
 };

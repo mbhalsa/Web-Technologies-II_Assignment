@@ -1,6 +1,5 @@
 "use strict";
 
-
 const persistence = require("./persistence");
 
 /**
@@ -63,5 +62,4 @@ module.exports = {
   getScheduleForEmployee,
   getScheduleForEmployeeSorted,
   updateEmployee
-
 };
