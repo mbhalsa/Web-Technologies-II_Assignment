@@ -1,0 +1,83 @@
+Assignment 4 Refactor Plan
+
+Current System (Assignment 3)
+The current scheduling system uses three collections: employees, shifts, and assignments.
+
+The assignments collection links employees to shifts using employeeId and shiftId fields.
+
+This design follows a relational database structure, but it is not optimal for a document-oriented database such as MongoDB.
+
+Required Changes for Assignment 4
+
+1. Collections That Will Change
+
+The following collections will change:
+- employees
+- shifts
+- assignments
+
+The assignments collection will be removed completely.
+
+The employees collection will no longer use employeeId as the main identifier. Instead, the MongoDB _id field will be used.
+
+The shifts collection will no longer use shiftId as the main identifier. Instead, the MongoDB _id field will be used.
+
+A new employees array will be added inside each shift document to store employee ObjectIds directly.
+
+New collections will also be added:
+- users
+- security_log
+
+2. Persistence Functions That Must Be Modified or Removed
+
+Any persistence functions that currently read from or write to the assignments collection must be removed or rewritten.
+
+Functions that assign employees to shifts must be changed so they update the employees array inside shift documents.
+
+Functions that retrieve an employee schedule must be changed so they search for shifts containing that employee’s ObjectId inside the employees array.
+
+Functions that still use employeeId or shiftId in queries must be updated to use _id and ObjectId values.
+
+3. Business Logic Changes
+
+Business logic for assigning an employee to a shift will change from creating a separate assignment document to updating a shift document.
+
+Business logic for removing an employee from a shift will change to removing that employee ObjectId from the employees array.
+
+Any logic that searches by employeeId or shiftId must be updated to work with MongoDB _id values.
+
+4. Embedded Arrays and Update Operations
+
+Using an embedded employees array inside shift documents will simplify the MongoDB design and better match a document database model.
+
+However, update operations will need to use MongoDB array operators such as adding and removing employee ObjectIds.
+
+Care must be taken to avoid duplicate employee ObjectIds inside a shift document.
+
+5. Risks and Complications
+
+Possible risks include:
+- errors when converting old employeeId values to MongoDB ObjectIds
+- missing code updates that still depend on employeeId or shiftId
+- duplicate employee ObjectIds in shift documents
+- broken queries after removing the assignments collection
+- mistakes in session handling when authentication is added later
+- access control mistakes when employee photos are added later
+
+6. Migration Plan
+
+A one-time transformation program called transform_db.js will be created.
+
+This program will:
+1. add an empty employees array to each shift document
+2. read all assignment documents
+3. convert assignment employeeId values into employee _id values
+4. insert those employee ObjectIds into the correct shift employees array
+5. remove obsolete fields such as employeeId and shiftId
+6. remove the assignments collection after migration is complete
+
+7. Expected Outcome
+
+After refactoring, the application will still support the same scheduling features as Assignment 3, but it will use a MongoDB design that is more appropriate for a non-relational database.
+
+The system will then be extended with authentication, session management, security logging, and employee photos.
