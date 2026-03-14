@@ -1,0 +1,5 @@
+
+{
+  "maxDailyHours": 9,
+  "mongoUri": "mongodb://60106430:M59955155m@ac-5sqmjec-shard-00-00.axav615.mongodb.net:27017,ac-5sqmjec-shard-00-01.axav615.mongodb.net:27017,ac-5sqmjec-shard-00-02.axav615.mongodb.net:27017/infs3201_winter2026?tls=true&authSource=admin&replicaSet=atlas-jm8tv5-shard-0"
+}
