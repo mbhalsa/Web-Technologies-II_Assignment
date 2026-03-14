@@ -61,6 +61,29 @@ async function embedEmployeesIntoShifts(db) {
     console.log("Step 2 complete.");
 }
 
+async function removeUnnecessaryItems(db) {
+
+    const employees = db.collection("employees");
+    const shifts = db.collection("shifts");
+    const assignments = db.collection("assignments");
+
+    console.log("Removing unnecessary fields and collection...");
+
+    await employees.updateMany(
+        {},
+        { $unset: { employeeId: "" } }
+    );
+
+    await shifts.updateMany(
+        {},
+        { $unset: { shiftId: "" } }
+    );
+
+    await assignments.drop();
+
+    console.log("Step 3 complete.");
+}
+
 async function main() {
 
     const settings = await readSettings();
@@ -73,6 +96,7 @@ async function main() {
 
     await addEmptyEmployeesArray(shifts);
     await embedEmployeesIntoShifts(db);
+    await removeUnnecessaryItems(db);
 
     await client.close();
 }
