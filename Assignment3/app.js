@@ -4,13 +4,18 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs/promises");
 const { MongoClient } = require("mongodb");
+const cookieParser = require("cookie-parser");
 const business = require("./business");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 
 const app = express();
 
 const SETTINGS_FILE = "config.json";
 const DB_NAME = "infs3201_winter2026";
+const SESSION_DURATION_MS = 5 * 60 * 1000;
+
+const sessions = {};
 
 app.engine(
   "hbs",
@@ -23,6 +28,7 @@ app.set("view engine", "hbs");
 app.set("views", path.join(__dirname, "views"));
 
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 /**
@@ -59,6 +65,72 @@ async function findUserByUsername(username) {
     return await db.collection("users").findOne({ username: username });
   } finally {
     await client.close();
+  }
+}
+
+/**
+ * Create a new session.
+ *
+ * @param {string} username
+ * @returns {string}
+ */
+function createSession(username) {
+  const sessionId = crypto.randomBytes(32).toString("hex");
+
+  sessions[sessionId] = {
+    username: username,
+    expiresAt: Date.now() + SESSION_DURATION_MS
+  };
+
+  return sessionId;
+}
+
+/**
+ * Get a valid session if it exists.
+ *
+ * @param {string} sessionId
+ * @returns {Object|null}
+ */
+function getSession(sessionId) {
+  if (typeof sessionId !== "string") {
+    return null;
+  }
+
+  const session = sessions[sessionId];
+
+  if (!session) {
+    return null;
+  }
+
+  if (Date.now() > session.expiresAt) {
+    delete sessions[sessionId];
+    return null;
+  }
+
+  return session;
+}
+
+/**
+ * Extend a session by another 5 minutes.
+ *
+ * @param {string} sessionId
+ * @returns {void}
+ */
+function extendSession(sessionId) {
+  if (sessions[sessionId]) {
+    sessions[sessionId].expiresAt = Date.now() + SESSION_DURATION_MS;
+  }
+}
+
+/**
+ * Delete a session.
+ *
+ * @param {string} sessionId
+ * @returns {void}
+ */
+function deleteSession(sessionId) {
+  if (sessions[sessionId]) {
+    delete sessions[sessionId];
   }
 }
 
@@ -108,7 +180,26 @@ app.post("/login", async function (req, res) {
     return res.redirect("/login?message=Invalid login");
   }
 
+  const sessionId = createSession(username);
+
+  res.cookie("sessionId", sessionId, {
+    httpOnly: true,
+    maxAge: SESSION_DURATION_MS
+  });
+
   res.redirect("/");
+});
+
+/**
+ * Logout route.
+ */
+app.get("/logout", function (req, res) {
+  const sessionId = req.cookies.sessionId;
+
+  deleteSession(sessionId);
+  res.clearCookie("sessionId");
+
+  res.redirect("/login?message=Logged out");
 });
 
 /**
