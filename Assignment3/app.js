@@ -2,9 +2,15 @@
 
 const express = require("express");
 const path = require("path");
+const fs = require("fs/promises");
+const { MongoClient } = require("mongodb");
 const business = require("./business");
+const bcrypt = require("bcrypt");
 
 const app = express();
+
+const SETTINGS_FILE = "config.json";
+const DB_NAME = "infs3201_winter2026";
 
 app.engine(
   "hbs",
@@ -16,8 +22,94 @@ app.engine(
 app.set("view engine", "hbs");
 app.set("views", path.join(__dirname, "views"));
 
-app.use(express.urlencoded({ extended: false })); // forms (pas de JS client)
+app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "public")));
+
+/**
+ * Read settings from config.json.
+ *
+ * @returns {Promise<{ mongoUri: string }>}
+ */
+async function readSettings() {
+  const fileText = await fs.readFile(SETTINGS_FILE, "utf8");
+  const obj = JSON.parse(fileText);
+
+  const uri = String(obj.mongoUri || "").trim();
+  if (!uri) {
+    throw new Error("Missing mongoUri in config.json");
+  }
+
+  return { mongoUri: uri };
+}
+
+/**
+ * Find user by username.
+ *
+ * @param {string} username
+ * @returns {Promise<Object|null>}
+ */
+async function findUserByUsername(username) {
+  const settings = await readSettings();
+  const client = new MongoClient(settings.mongoUri);
+
+  try {
+    await client.connect();
+    const db = client.db(DB_NAME);
+
+    return await db.collection("users").findOne({ username: username });
+  } finally {
+    await client.close();
+  }
+}
+
+/**
+ * Login page.
+ */
+app.get("/login", function (req, res) {
+  let message = "";
+
+  if (typeof req.query.message === "string") {
+    message = req.query.message;
+  }
+
+  res.render("login", { message: message });
+});
+
+/**
+ * Login submit.
+ */
+app.post("/login", async function (req, res) {
+  let username = req.body.username;
+  let password = req.body.password;
+
+  if (typeof username !== "string") {
+    username = "";
+  }
+  if (typeof password !== "string") {
+    password = "";
+  }
+
+  username = username.trim();
+  password = password.trim();
+
+  if (username.length === 0 || password.length === 0) {
+    return res.redirect("/login?message=Invalid login");
+  }
+
+  const user = await findUserByUsername(username);
+
+  if (!user) {
+    return res.redirect("/login?message=Invalid login");
+  }
+
+  const ok = await bcrypt.compare(password, user.password);
+
+  if (!ok) {
+    return res.redirect("/login?message=Invalid login");
+  }
+
+  res.redirect("/");
+});
 
 /**
  * Landing page: list of employees (links).
@@ -40,7 +132,6 @@ app.get("/employees/:id", async function (req, res) {
 
   const shifts = await business.getScheduleForEmployeeSorted(empId);
 
-  // for highlighting < 12:00
   for (let i = 0; i < shifts.length; i++) {
     shifts[i].isMorning = shifts[i].startTime < "12:00";
   }
@@ -85,16 +176,13 @@ app.post("/employees/:id/edit", async function (req, res) {
     return res.send("Validation failed: Name must be non-empty");
   }
 
-  // 4 digits - dash - 4 digits
   const phoneOk = /^[0-9]{4}-[0-9]{4}$/.test(phone);
   if (!phoneOk) {
     return res.send("Validation failed: Phone must be 4 digits, a dash, then 4 digits");
   }
 
-  // update DB
   await business.updateEmployee(empId, name, phone);
 
-  // PRG cycle: redirect to landing page
   res.redirect("/");
 });
 
