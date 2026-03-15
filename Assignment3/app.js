@@ -71,6 +71,33 @@ async function findUserByUsername(username) {
 }
 
 /**
+ * Write one security log entry.
+ *
+ * @param {string} username
+ * @param {string} url
+ * @param {string} method
+ * @returns {Promise<void>}
+ */
+async function writeSecurityLog(username, url, method) {
+  const settings = await readSettings();
+  const client = new MongoClient(settings.mongoUri);
+
+  try {
+    await client.connect();
+    const db = client.db(DB_NAME);
+
+    await db.collection("security_log").insertOne({
+      timestamp: new Date(),
+      username: username,
+      url: url,
+      method: method
+    });
+  } finally {
+    await client.close();
+  }
+}
+
+/**
  * Create a new session.
  *
  * @param {string} username
@@ -137,6 +164,34 @@ function deleteSession(sessionId) {
 }
 
 /**
+ * Middleware to log all accesses.
+ *
+ * @param {Object} req
+ * @param {Object} res
+ * @param {Function} next
+ * @returns {void}
+ */
+function securityLogMiddleware(req, res, next) {
+  const sessionId = req.cookies.sessionId;
+  const session = getSession(sessionId);
+
+  let username = "unknown";
+
+  if (session && typeof session.username === "string") {
+    username = session.username;
+  }
+
+  writeSecurityLog(username, req.originalUrl, req.method)
+    .then(function () {
+      next();
+    })
+    .catch(function (err) {
+      console.error(err);
+      next();
+    });
+}
+
+/**
  * Middleware to protect routes.
  *
  * @param {Object} req
@@ -161,6 +216,8 @@ function requireLogin(req, res, next) {
 
   next();
 }
+
+app.use(securityLogMiddleware);
 
 /**
  * Login page.
