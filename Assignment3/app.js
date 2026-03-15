@@ -3,6 +3,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs/promises");
+const fsSync = require("fs");
 const { MongoClient } = require("mongodb");
 const cookieParser = require("cookie-parser");
 const business = require("./business");
@@ -14,6 +15,7 @@ const app = express();
 const SETTINGS_FILE = "config.json";
 const DB_NAME = "infs3201_winter2026";
 const SESSION_DURATION_MS = 5 * 60 * 1000;
+const PHOTO_FOLDER = path.join(__dirname, "employee_photos");
 
 const sessions = {};
 
@@ -315,6 +317,32 @@ app.get("/employees/:id", requireLogin, async function (req, res) {
   }
 
   res.render("employee", { employee: employee, shifts: shifts });
+});
+
+/**
+ * Protected employee photo route.
+ */
+app.get("/photos/:id", requireLogin, async function (req, res) {
+  const empId = req.params.id;
+
+  const employee = await business.getEmployee(empId);
+
+  if (!employee) {
+    return res.status(404).send("Employee not found");
+  }
+
+  if (typeof employee.photoFilename !== "string" || employee.photoFilename.trim().length === 0) {
+    return res.status(404).send("Photo not found");
+  }
+
+  const safeFilename = path.basename(employee.photoFilename);
+  const fullPath = path.join(PHOTO_FOLDER, safeFilename);
+
+  if (!fsSync.existsSync(fullPath)) {
+    return res.status(404).send("Photo file not found");
+  }
+
+  res.sendFile(fullPath);
 });
 
 /**
