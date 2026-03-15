@@ -24,6 +24,7 @@ app.engine(
     defaultLayout: false
   })
 );
+
 app.set("view engine", "hbs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -41,6 +42,7 @@ async function readSettings() {
   const obj = JSON.parse(fileText);
 
   const uri = String(obj.mongoUri || "").trim();
+
   if (!uri) {
     throw new Error("Missing mongoUri in config.json");
   }
@@ -86,7 +88,7 @@ function createSession(username) {
 }
 
 /**
- * Get a valid session if it exists.
+ * Return session if valid, otherwise null.
  *
  * @param {string} sessionId
  * @returns {Object|null}
@@ -111,7 +113,7 @@ function getSession(sessionId) {
 }
 
 /**
- * Extend a session by another 5 minutes.
+ * Extend session for another 5 minutes.
  *
  * @param {string} sessionId
  * @returns {void}
@@ -123,7 +125,7 @@ function extendSession(sessionId) {
 }
 
 /**
- * Delete a session.
+ * Delete session.
  *
  * @param {string} sessionId
  * @returns {void}
@@ -132,6 +134,32 @@ function deleteSession(sessionId) {
   if (sessions[sessionId]) {
     delete sessions[sessionId];
   }
+}
+
+/**
+ * Middleware to protect routes.
+ *
+ * @param {Object} req
+ * @param {Object} res
+ * @param {Function} next
+ * @returns {void}
+ */
+function requireLogin(req, res, next) {
+  const sessionId = req.cookies.sessionId;
+  const session = getSession(sessionId);
+
+  if (!session) {
+    return res.redirect("/login?message=Please login");
+  }
+
+  extendSession(sessionId);
+
+  res.cookie("sessionId", sessionId, {
+    httpOnly: true,
+    maxAge: SESSION_DURATION_MS
+  });
+
+  next();
 }
 
 /**
@@ -157,6 +185,7 @@ app.post("/login", async function (req, res) {
   if (typeof username !== "string") {
     username = "";
   }
+
   if (typeof password !== "string") {
     password = "";
   }
@@ -203,20 +232,21 @@ app.get("/logout", function (req, res) {
 });
 
 /**
- * Landing page: list of employees (links).
+ * Landing page: list of employees.
  */
-app.get("/", async function (req, res) {
+app.get("/", requireLogin, async function (req, res) {
   const employees = await business.listEmployees();
   res.render("home", { employees: employees });
 });
 
 /**
- * Employee details page: employee info + shifts list.
+ * Employee details page.
  */
-app.get("/employees/:id", async function (req, res) {
+app.get("/employees/:id", requireLogin, async function (req, res) {
   const empId = req.params.id;
 
   const employee = await business.getEmployee(empId);
+
   if (!employee) {
     return res.status(404).send("Employee not found");
   }
@@ -231,12 +261,13 @@ app.get("/employees/:id", async function (req, res) {
 });
 
 /**
- * Edit form (prefilled)
+ * Edit form.
  */
-app.get("/employees/:id/edit", async function (req, res) {
+app.get("/employees/:id/edit", requireLogin, async function (req, res) {
   const empId = req.params.id;
 
   const employee = await business.getEmployee(empId);
+
   if (!employee) {
     return res.status(404).send("Employee not found");
   }
@@ -245,9 +276,9 @@ app.get("/employees/:id/edit", async function (req, res) {
 });
 
 /**
- * Edit submit (server-side validation + PRG redirect)
+ * Edit submit.
  */
-app.post("/employees/:id/edit", async function (req, res) {
+app.post("/employees/:id/edit", requireLogin, async function (req, res) {
   const empId = req.params.id;
 
   let name = req.body.name;
@@ -256,6 +287,7 @@ app.post("/employees/:id/edit", async function (req, res) {
   if (typeof name !== "string") {
     name = "";
   }
+
   if (typeof phone !== "string") {
     phone = "";
   }
@@ -268,6 +300,7 @@ app.post("/employees/:id/edit", async function (req, res) {
   }
 
   const phoneOk = /^[0-9]{4}-[0-9]{4}$/.test(phone);
+
   if (!phoneOk) {
     return res.send("Validation failed: Phone must be 4 digits, a dash, then 4 digits");
   }
