@@ -6,31 +6,46 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <h1>{{employee.name}}</h1>
-  <p><strong>ID:</strong> {{employee._id}}</p>
-  <p><strong>Phone:</strong> {{employee.phone}}</p>
 
-  <p><a href="/employees/{{employee._id}}/edit">Edit Details</a></p>
+<h1>{{employee.name}}</h1>
 
-  <h2>Shifts</h2>
+{{#if employee.photoFilename}}
+  <div>
+    <img src="/photos/{{employee._id}}" alt="Employee photo" width="200">
+  </div>
+{{/if}}
 
-  <table>
-    <thead>
+<p><strong>ID:</strong> {{employee._id}}</p>
+<p><strong>Phone:</strong> {{employee.phone}}</p>
+
+<p><a href="/employees/{{employee._id}}/edit">Edit Details</a></p>
+
+<h2>Shifts</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Start</th>
+      <th>End</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {{#each shifts}}
       <tr>
-        <th>Date</th><th>Start</th><th>End</th>
+        <td>{{this.date}}</td>
+        <td class="{{#if this.isMorning}}morning{{/if}}">
+          {{this.startTime}}
+        </td>
+        <td>{{this.endTime}}</td>
       </tr>
-    </thead>
-    <tbody>
-      {{#each shifts}}
-        <tr>
-          <td>{{this.date}}</td>
-          <td class="{{#if this.isMorning}}morning{{/if}}">{{this.startTime}}</td>
-          <td>{{this.endTime}}</td>
-        </tr>
-      {{/each}}
-    </tbody>
-  </table>
+    {{/each}}
+  </tbody>
 
-  <p><a href="/">Back</a></p>
+</table>
+<p><a href="/logout">Logout</a></p>
+<p><a href="/">Back</a></p>
+
 </body>
 </html>
